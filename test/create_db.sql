@@ -76,3 +76,93 @@ CREATE TABLE order_items (
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_article) REFERENCES products(article)
 );
+
+
+heredef add_product(data):
+    try:
+        with connect() as conn:
+            category_id = get_or_create_id(conn, "categories", data["category"])
+            manufacturer_id = get_or_create_id(conn, "manufacturers", data["manufacturer"])
+            supplier_id = get_or_create_id(conn, "suppliers", data["supplier"])
+            unit_id = get_or_create_id(conn, "units", data["unit"])
+
+            conn.execute("""
+                INSERT INTO products(
+                    article, name, unit_id, price, supplier_id, manufacturer_id, category_id,
+                    discount, stock_quantity, description, photo_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                data["article"],
+                data["name"],
+                unit_id,
+                data["price"],
+                supplier_id,
+                manufacturer_id,
+                category_id,
+                data["discount"],
+                data["stock_quantity"],
+                data["description"],
+                data["photo_url"]
+            ))
+
+            conn.commit()
+            return True, "Товар добавлен"
+
+    except sqlite3.IntegrityError:
+        return False, "Товар с таким артикулом уже есть"
+
+    except sqlite3.Error as error:
+        return False, f"Ошибка базы данных: {error}"
+
+
+def update_product(article, data):
+    try:
+        with connect() as conn:
+            category_id = get_or_create_id(conn, "categories", data["category"])
+            manufacturer_id = get_or_create_id(conn, "manufacturers", data["manufacturer"])
+            supplier_id = get_or_create_id(conn, "suppliers", data["supplier"])
+            unit_id = get_or_create_id(conn, "units", data["unit"])
+
+            conn.execute("""
+                UPDATE products
+                SET 
+                    name = ?,
+                    unit_id = ?,
+                    price = ?,
+                    supplier_id = ?,
+                    manufacturer_id = ?,
+                    category_id = ?,
+                    discount = ?,
+                    stock_quantity = ?,
+                    description = ?,
+                    photo_url = ?
+                WHERE article = ?
+            """, (
+                data["name"],
+                unit_id,
+                data["price"],
+                supplier_id,
+                manufacturer_id,
+                category_id,
+                data["discount"],
+                data["stock_quantity"],
+                data["description"],
+                data["photo_url"],
+                article
+            ))
+
+            conn.commit()
+            return True, "Товар изменён"
+
+    except sqlite3.Error as error:
+        return False, f"Ошибка изменения: {error}"
+
+
+def get_products(search="", supplier="Все поставщики", sort_stock=""):
+    search = search.strip() if search else ""
+
+    sql = """
+        SELECT
+            products.article,
+            products.name,
+            units.name AS unit,
